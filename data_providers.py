@@ -261,6 +261,7 @@ class ACLIMDBDataProvider(DataProvider):
             which is equal to one.
         """
         one_of_k_targets = np.zeros((int_targets.shape[0], self.num_classes))
+        # print(int_targets)
         one_of_k_targets[range(int_targets.shape[0]), int_targets] = 1
         return one_of_k_targets
 
