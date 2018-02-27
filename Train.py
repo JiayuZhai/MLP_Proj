@@ -15,14 +15,20 @@ def getTrainBatch():
 		train_data = data_providers.ACLIMDBDataProvider('train', batch_size=batchSize)
 		return train_data.next()
     # return train_data.next()
-def getTestBatch():
-    return valid_data.next()
+def getValidBatch():
+	try:
+		return valid_data.next()
+	except:
+		valid_data = data_providers.ACLIMDBDataProvider('valid', batch_size=batchSize)
+		return valid_data.next()
+
 lstmUnits = 64
 numClasses = 2
 epoches = 50
 iterations = 20000//batchSize * epoches
 # iterations = 10
 maxSeqLength = 2505
+middleDimension = 100
 numDimensions = 300 #Dimensions for each word vector
 vacSize = 93928
 
@@ -36,69 +42,117 @@ with tf.name_scope("Input"):
 	# inputs
 	inputs = []
 	for i in range(batchSize):
-		inputs.append(tf.placeholder(tf.float32, [1,None]))
+		inputs.append(tf.placeholder(tf.int32, [1,None]))
 
-# with tf.name_scope("One_hot"):
-# 	one_hots = []
-# 	for i in range(batchSize):
-# 		one_hots.append(tf.one_hot(inputs[i],vacSize,axis=-1))
+with tf.name_scope("One_hot"):
+	one_hots = []
+	for i in range(batchSize):
+		one_hots.append(tf.one_hot(inputs[i],vacSize,axis=-1))
 
 with tf.name_scope("Word2vector"):
 	# word embedding weights and bias
-	W1 = tf.Variable(np.random.rand(1, numDimensions), dtype=tf.float32, name="inputs_")
-	# one_hot version for weight
-	# W1 = tf.Variable(np.random.rand(vacSize, numDimensions), dtype=tf.float32, name="inputs_")
-	b1 = tf.Variable(np.zeros((1,numDimensions)), dtype=tf.float32, name="inputs_")
+	# W1 = tf.Variable(np.random.rand(1, middleDimension), dtype=tf.float32)
+	# # one_hot version for weight
+	# # W1 = tf.Variable(np.random.rand(vacSize, numDimensions), dtype=tf.float32, name="inputs_")
+	# b1 = tf.Variable(np.zeros((1,middleDimension)), dtype=tf.float32)
+	# W2 = tf.Variable(np.random.rand(middleDimension, middleDimension), dtype=tf.float32)
+	# b2 = tf.Variable(np.zeros((1,middleDimension)), dtype=tf.float32)
+	W3 = tf.Variable(np.random.rand(vacSize, numDimensions), dtype=tf.float32)
+	b3 = tf.Variable(np.zeros((1,numDimensions)), dtype=tf.float32)
+	# layer1 = []
+	# layer2 = []
 	# data ready for rnn input
 	datas = []
 	for i in range(batchSize):
-		datas.append(tf.multiply(tf.expand_dims(inputs[i], 2),tf.expand_dims(W1, 1)) + tf.expand_dims(b1, 1))
+		# layer1.append(tf.matmul(	#First Layer 100 units
+		# 			tf.transpose(inputs[i],[1,0]),
+		# 			W1) + # 1x100 weights
+		# 			b1) #1x100 bias
+		# layer2.append(tf.matmul(	#Second Layer 100 units
+		# 			layer1[i],
+		# 			W2) + # 100x100 weights
+		# 			b2) #1x100 bias
+		# datas.append(tf.matmul(	# Third Layer 300 units as output
+		# 			tf.transpose(one_hots[i],[1,0]), 
+		# 			W3) + #100x300 bias
+		# 			b3) #1x300 bias
 		# one_hot version for w2v
-		# datas.append(tf.matmul(one_hots[i],tf.expand_dims(W1,0)) + b1)
+		datas.append(tf.matmul(one_hots[i],tf.expand_dims(W3,0)) + b3)
 
 with tf.name_scope("RNN"):
 	# define RNN network
+	# b, sequence_length, 300
 	lstmCell = tf.contrib.rnn.BasicLSTMCell(lstmUnits)
 	lstmCell = tf.contrib.rnn.DropoutWrapper(cell=lstmCell, output_keep_prob=0.75)
 	values = []
+	final_states = []
 	for i in range(batchSize):
-		value, _ = tf.nn.dynamic_rnn(lstmCell, datas[i], dtype=tf.float32)
+		value, final_state = tf.nn.dynamic_rnn(lstmCell, datas[i], dtype=tf.float32)
 		values.append(value)
-
-with tf.name_scope("Mean"):
+		final_states.append(final_state)
+	#b, lstm_units # output size
+	#b, sequence_length, lstm_units # hidden vector size
+with tf.name_scope("Max"):
 	# get last value from RNN output
 	for i in range(batchSize):
-		values[i] = tf.transpose(values[i], [1, 0, 2])
-	means = []
+		values[i] = tf.transpose(values[i], [1, 0, 2])#sequence_length, b, lstm_units
+	maxs = []
 	for i in range(batchSize):
-		means.append(tf.reduce_mean(values[i], axis=0))
+		maxs.append(tf.reduce_max(values[i], axis=0))#b, lstm_units
 
 with tf.name_scope("Concat"):
-	mean_batch = tf.concat([mean for mean in means], 0)
+	mean_batch = tf.concat([max_item for max_item in maxs], 0)
 
 with tf.name_scope("Prefiction"):
 	# weight and bias after RNN
-	weight = tf.Variable(tf.truncated_normal([lstmUnits, numClasses]), name="inputs_")
-	bias = tf.Variable(tf.constant(0.1, shape=[numClasses]), name="inputs_")
+	weight1 = tf.Variable(np.random.rand(lstmUnits, numClasses), dtype=tf.float32)
+	bias1 = tf.Variable(tf.constant(0.1, shape=[numClasses]))
+	# weight2 = tf.Variable(np.random.rand(middleDimension, middleDimension), dtype=tf.float32)
+	# bias2 = tf.Variable(tf.constant(0.1, shape=[middleDimension]))
+	# weight3 = tf.Variable(np.random.rand(middleDimension, numClasses), dtype=tf.float32)
+	# bias3 = tf.Variable(tf.constant(0.1, shape=[numClasses]))
 	# get he prediction
-	prediction = (tf.matmul(mean_batch, weight) + bias)
+	prediction = tf.matmul(
+		# (tf.matmul(
+			# (tf.matmul(
+				mean_batch, 
+				weight1) + bias1
+			# ),weight2)+bias2
+		# ),weight3)+bias3
 
 with tf.name_scope("Acc"):
 	# calculate the accuracy
+	predict_test = tf.argmax(prediction,1)
+	label_test = tf.argmax(labels,1)
 	correctPred = tf.equal(tf.argmax(prediction,1), tf.argmax(labels,1))
 	accuracy = tf.reduce_mean(tf.cast(correctPred, tf.float32))
 
 with tf.name_scope("Err"):
 	# define the loss
 	loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=prediction, labels=labels))
+
+with tf.name_scope("ValidAcc"):
+	# calculate the accuracy
+	valid_correctPred = tf.equal(tf.argmax(prediction,1), tf.argmax(labels,1))
+	valid_accuracy = tf.reduce_mean(tf.cast(correctPred, tf.float32))
+
+with tf.name_scope("ValidErr"):
+	# define the loss
+	valid_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=prediction, labels=labels))
+
 # set learning method
 optimizer = tf.train.AdamOptimizer().minimize(loss)
 
 import datetime
 # define tensorboard related
-tf.summary.scalar('Loss', loss)
-tf.summary.scalar('Accuracy', accuracy)
-merged = tf.summary.merge_all()
+# tf.summary.scalar('TrainLoss', loss)
+# tf.summary.scalar('TrainAccuracy', accuracy)
+# tf.summary.scalar('ValidLoss', valid_loss)
+# tf.summary.scalar('ValidAccuracy', valid_accuracy)
+merged = tf.summary.merge([tf.summary.scalar('TrainLoss', loss),
+	tf.summary.scalar('TrainAccuracy', accuracy)])
+valid_merged = tf.summary.merge([tf.summary.scalar('ValidLoss', valid_loss),
+	tf.summary.scalar('ValidAccuracy', valid_accuracy)])
 logdir = "tensorboard/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + "/"
 
 # define output files
@@ -113,14 +167,25 @@ for i in range(iterations):
     nextBatch, nextBatchLabels = getTrainBatch()
     dict_feed = {}
     for j in range(batchSize):
-    	dict_feed[inputs[j]] = nextBatch[j].reshape((1,len(nextBatch[j])))
+    	dict_feed[inputs[j]] = nextBatch[j].reshape((1,len(nextBatch[j])))#/9392.8
     dict_feed[labels] = nextBatchLabels
+    # print(sess.run(datas[0], dict_feed))
+    # print(sess.run(predict_test, dict_feed))
     sess.run(optimizer, dict_feed)
     print("%f min left for complete" % ((time.time() - start_time)*(iterations-i)/60))
     #Write summary to Tensorboard
     if (i % 50 == 0):
+    	# Train summary
         summary = sess.run(merged, dict_feed)
         writer.add_summary(summary, i)
+        # Validation summary
+        valid_nextBatch, valid_nextBatchLabels = getValidBatch()
+        valid_dict = {}
+        for j in range(batchSize):
+            valid_dict[inputs[j]] = valid_nextBatch[j].reshape((1,len(valid_nextBatch[j])))#/9392.8
+        valid_dict[labels] = valid_nextBatchLabels
+        valid_summary = sess.run(valid_merged, valid_dict)
+        writer.add_summary(valid_summary, i)
 
     #Save the network every 10,000 training iterations
     if (i % 10000 == 0 and i != 0):
