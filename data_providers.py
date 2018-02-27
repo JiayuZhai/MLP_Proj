@@ -123,7 +123,7 @@ class DataProvider(object):
             # no more batches in current iteration through data set so start
             # new epoch ready for another pass and indicate iteration is at end
             self.new_epoch()
-            raise StopIteration()
+            # raise StopIteration()
         # create an index slice corresponding to current batch number
         batch_slice = slice(self._curr_batch * self.batch_size,
                             (self._curr_batch + 1) * self.batch_size)
