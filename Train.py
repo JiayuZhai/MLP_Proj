@@ -87,9 +87,13 @@ def Train():
 		# layer1 = []
 		# layer2 = []
 		# data ready for rnn input
-		datas = tf.reshape(tf.matmul(tf.reshape(inputs,(-1,1)), W3) + b3, (batchSize,-1,numDimensions)) # batchSize, max_len, numDimensions
+		linear = tf.matmul(tf.reshape(inputs,(-1,1)), W3) + b3
+		datas = tf.reshape(tf.nn.relu(linear), (batchSize,-1,numDimensions)) # batchSize, max_len, numDimensions
 		# datas_r = tf.reshape(tf.matmul(tf.reshape(one_hots_r,(-1,vocSize)), W3) + b3, (batchSize,-1,numDimensions)) # batchSize, max_len, numDimensions
 		
+		# try RELU
+
+
 		# for i in range(batchSize):
 		# 	# layer1.append(tf.matmul(	#First Layer 100 units
 		# 	# 			tf.transpose(inputs[i],[1,0]),
@@ -115,20 +119,16 @@ def Train():
 		lstmCell_r = tf.contrib.rnn.DropoutWrapper(cell=lstmCell, output_keep_prob=0.75)
 		# values = []
 		# final_states = []
-		(output_fw, output_bw), final_states = tf.nn.bidirectional_dynamic_rnn(lstmCell,lstmCell_r, datas,
+		(outputs_fw, outputs_bw), (final_state_fw, final_state_bw) = tf.nn.bidirectional_dynamic_rnn(lstmCell,lstmCell_r, datas,
 			sequence_length = sequence_length, dtype=tf.float32) #values: batchSize, max_len, LSTM_size
-		# for i in range(batchSize):
-		# 	value, final_state = tf.nn.dynamic_rnn(lstmCell, tf.expand_dims(datas[i],0), dtype=tf.float32)
-		# 	values.append(value)
-		# 	final_states.append(final_state)
 		#b, lstm_units # output size
 		#b, sequence_length, lstm_units # hidden vector size
-	with tf.name_scope("Max"):
-		# get last value from RNN output
-		# values = tf.transpose(values, [1, 0, 2])#sequence_length, b, lstm_units
-		max_fw = tf.reduce_max(output_fw, axis=1)#b, lstm_units
-		max_bw = tf.reduce_max(output_bw, axis=1)#b, lstm_units
-		maxs = tf.concat([max_fw,max_bw],1) #b, lstm_units*2
+	# with tf.name_scope("Max"):
+	# 	# get last value from RNN output
+	# 	# values = tf.transpose(values, [1, 0, 2])#sequence_length, b, lstm_units
+	# 	max_fw = tf.reduce_max(output_fw, axis=1)#b, lstm_units
+	# 	max_bw = tf.reduce_max(output_bw, axis=1)#b, lstm_units
+	# 	maxs = tf.concat([max_fw,max_bw],1) #b, lstm_units*2
 
 	# with tf.name_scope("Concat"):
 	# 	max_batch = tf.concat([max_item for max_item in maxs], 0)
@@ -145,7 +145,7 @@ def Train():
 		prediction = tf.matmul(
 			# (tf.matmul(
 				# (tf.matmul(
-					maxs, 
+					tf.concat([outputs_fw[:,-1,:],outputs_bw[:,-1,:]],1), 
 					weight1) + bias1
 				# ),weight2)+bias2
 			# ),weight3)+bias3
