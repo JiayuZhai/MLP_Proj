@@ -3,7 +3,7 @@ import data_providers as data_providers
 import numpy as np
 import time
 
-batchSize = 2
+batchSize = 50
 train_data = data_providers.ACLIMDBDataProvider('train', batch_size=batchSize)
 valid_data = data_providers.ACLIMDBDataProvider('valid', batch_size=batchSize)
 # print(train_data.next())
