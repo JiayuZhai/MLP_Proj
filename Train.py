@@ -90,8 +90,6 @@ def Train():
 		linear = tf.matmul(tf.reshape(inputs,(-1,1)), W3) + b3
 		datas = tf.reshape(tf.nn.relu(linear), (batchSize,-1,numDimensions)) # batchSize, max_len, numDimensions
 		# datas_r = tf.reshape(tf.matmul(tf.reshape(one_hots_r,(-1,vocSize)), W3) + b3, (batchSize,-1,numDimensions)) # batchSize, max_len, numDimensions
-		
-		# try RELU
 
 
 		# for i in range(batchSize):
@@ -145,14 +143,14 @@ def Train():
 		prediction = tf.matmul(
 			# (tf.matmul(
 				# (tf.matmul(
-					tf.concat([outputs_fw[:,-1,:],outputs_bw[:,-1,:]],1), 
+					tf.concat([final_state_fw.h, final_state_bw.h],1), 
 					weight1) + bias1
 				# ),weight2)+bias2
 			# ),weight3)+bias3
 
 	with tf.name_scope("Acc"):
 		# calculate the accuracy
-		# predict_test = tf.argmax(prediction,1)
+		predict_test = tf.argmax(prediction,1)
 		# labels_test = tf.argmax(labels,1)
 		correctPred = tf.equal(tf.argmax(prediction,1), tf.argmax(labels,1))
 		accuracy = tf.reduce_mean(tf.cast(correctPred, tf.float32))
@@ -199,7 +197,8 @@ def Train():
 		# print(nextBatch[j].shape)
 		# print(sess.run(datas[0], dict_feed))
 		# print(sess.run(predict_test, dict_feed))
-		# print(sess.run(maxs, dict_feed))
+		# print(sess.run(final_state_fw, dict_feed))
+		# print(sess.run(outputs_fw, dict_feed))
 		sess.run(optimizer, dict_feed)
 		print("%f min left for complete" % ((time.time() - start_time)*(iterations-i)/60))
 		#Write summary to Tensorboard
