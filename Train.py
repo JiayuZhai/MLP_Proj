@@ -3,7 +3,8 @@ import data_providers as data_providers
 import numpy as np
 import time
 
-batchSize = 50
+batchSize = 100
+
 train_data = data_providers.ACLIMDBDataProvider('train', batch_size=batchSize)
 valid_data = data_providers.ACLIMDBDataProvider('valid', batch_size=batchSize)
 # print(train_data.next())
@@ -17,7 +18,8 @@ def processBatch(nextBatch):
 	new_nextBatch = np.zeros((batchSize,max_len))
 	# new_nextBatch_reverse = np.zeros((batchSize,max_len))
 	for j in range(batchSize):
-		new_nextBatch[j] = np.pad(nextBatch[j],(0,max_len-len(nextBatch[j])),'constant')
+		new_nextBatch[j] = np.pad(nextBatch[j],(0,max_len-len(nextBatch[j])),'constant')/9392.8
+		# print(new_nextBatch[j])
 		# new_nextBatch_reverse[j] = np.pad(np.flip(nextBatch[j],0),(0,max_len-len(nextBatch[j])),'constant')
 	# print(new_nextBatch,new_nextBatch_reverse)
 	return new_nextBatch, nextBatchLength
@@ -56,7 +58,7 @@ def Train():
 
 	with tf.name_scope("Input"):
 		# inputs
-		inputs = tf.placeholder(tf.int32, [batchSize,None]) # batchSize, max_len
+		inputs = tf.placeholder(tf.float32, [batchSize,None]) # batchSize, max_len
 
 	# with tf.name_scope("Input_Reverse"):
 	# 	# inputs
@@ -66,9 +68,9 @@ def Train():
 		# inputs
 		sequence_length = tf.placeholder(tf.int32, [batchSize]) # batchSize, max_len
 
-	with tf.name_scope("One_hot"):
-		one_hots = tf.one_hot(inputs,vocSize,axis=-1) # batchSize, max_len, voc
-		# one_hots_r = tf.one_hot(inputs_r,vocSize,axis=-1)
+	# with tf.name_scope("One_hot"):
+	# 	one_hots = tf.one_hot(inputs,vocSize,axis=-1) # batchSize, max_len, voc
+	# 	# one_hots_r = tf.one_hot(inputs_r,vocSize,axis=-1)
 
 	with tf.name_scope("Word2vector"):
 		# word embedding weights and bias
@@ -80,12 +82,12 @@ def Train():
 		# b2 = tf.Variable(np.zeros((1,middleDimension)), dtype=tf.float32)
 		
 		# W3 = tf.Variable(np.random.rand(batchSize,1, numDimensions), dtype=tf.float32)
-		W3 = tf.Variable(np.random.rand(vocSize, numDimensions), dtype=tf.float32)
+		W3 = tf.Variable(np.random.rand(1, numDimensions), dtype=tf.float32)
 		b3 = tf.Variable(np.zeros((1,numDimensions)), dtype=tf.float32)
 		# layer1 = []
 		# layer2 = []
 		# data ready for rnn input
-		datas = tf.reshape(tf.matmul(tf.reshape(one_hots,(-1,vocSize)), W3) + b3, (batchSize,-1,numDimensions)) # batchSize, max_len, numDimensions
+		datas = tf.reshape(tf.matmul(tf.reshape(inputs,(-1,1)), W3) + b3, (batchSize,-1,numDimensions)) # batchSize, max_len, numDimensions
 		# datas_r = tf.reshape(tf.matmul(tf.reshape(one_hots_r,(-1,vocSize)), W3) + b3, (batchSize,-1,numDimensions)) # batchSize, max_len, numDimensions
 		
 		# for i in range(batchSize):
@@ -197,7 +199,7 @@ def Train():
 		# print(nextBatch[j].shape)
 		# print(sess.run(datas[0], dict_feed))
 		# print(sess.run(predict_test, dict_feed))
-		print(sess.run(maxs, dict_feed))
+		# print(sess.run(maxs, dict_feed))
 		sess.run(optimizer, dict_feed)
 		print("%f min left for complete" % ((time.time() - start_time)*(iterations-i)/60))
 		#Write summary to Tensorboard
