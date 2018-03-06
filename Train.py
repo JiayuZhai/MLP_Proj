@@ -18,7 +18,7 @@ def processBatch(nextBatch):
 	new_nextBatch = np.zeros((batchSize,max_len))
 	# new_nextBatch_reverse = np.zeros((batchSize,max_len))
 	for j in range(batchSize):
-		new_nextBatch[j] = np.pad(nextBatch[j],(0,max_len-len(nextBatch[j])),'constant')/9392.8
+		new_nextBatch[j] = np.pad(nextBatch[j],(0,max_len-len(nextBatch[j])),'constant')#/9392.8
 		# print(new_nextBatch[j])
 		# new_nextBatch_reverse[j] = np.pad(np.flip(nextBatch[j],0),(0,max_len-len(nextBatch[j])),'constant')
 	# print(new_nextBatch,new_nextBatch_reverse)
@@ -58,7 +58,7 @@ def Train():
 
 	with tf.name_scope("Input"):
 		# inputs
-		inputs = tf.placeholder(tf.float32, [batchSize,None]) # batchSize, max_len
+		inputs = tf.placeholder(tf.int32, [batchSize,None]) # batchSize, max_len
 
 	# with tf.name_scope("Input_Reverse"):
 	# 	# inputs
@@ -80,16 +80,16 @@ def Train():
 		# b1 = tf.Variable(np.zeros((1,middleDimension)), dtype=tf.float32)
 		# W2 = tf.Variable(np.random.rand(middleDimension, middleDimension), dtype=tf.float32)
 		# b2 = tf.Variable(np.zeros((1,middleDimension)), dtype=tf.float32)
-		
-		# W3 = tf.Variable(np.random.rand(batchSize,1, numDimensions), dtype=tf.float32)
-		W3 = tf.Variable(np.random.rand(1, numDimensions), dtype=tf.float32)
-		b3 = tf.Variable(np.zeros((1,numDimensions)), dtype=tf.float32)
-		# layer1 = []
-		# layer2 = []
+		embedding = embedding = tf.get_variable(
+			"embedding", [vocSize, numDimensions], dtype=tf.float32)
+		datas = tf.nn.embedding_lookup(embedding, inputs)
+		# W3 = tf.Variable(np.random.rand(1, numDimensions), dtype=tf.float32)
+		# b3 = tf.Variable(np.zeros((1,numDimensions)), dtype=tf.float32)
+
 		# data ready for rnn input
-		linear = tf.matmul(tf.reshape(inputs,(-1,1)), W3) + b3
-		datas = tf.reshape(tf.nn.relu(linear), (batchSize,-1,numDimensions)) # batchSize, max_len, numDimensions
-		# datas_r = tf.reshape(tf.matmul(tf.reshape(one_hots_r,(-1,vocSize)), W3) + b3, (batchSize,-1,numDimensions)) # batchSize, max_len, numDimensions
+
+		# linear = tf.matmul(tf.reshape(inputs,(-1,1)), W3) + b3
+		# datas = tf.reshape(tf.nn.relu(linear), (batchSize,-1,numDimensions)) # batchSize, max_len, numDimensions
 
 
 		# for i in range(batchSize):
