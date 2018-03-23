@@ -43,7 +43,7 @@ def getValidBatch():
 
 lstmUnits = arg_dict['hs']
 numClasses = 2
-epoches = 10
+epoches = 5
 iterations = 20000//batchSize * epoches
 numDimensions = arg_dict['v'] #Dimensions for each word vector
 vocSize = 93929
@@ -51,6 +51,16 @@ dropoutRatio = arg_dict['d']
 useBidirectional = True
 rnnLayers = arg_dict['rl']
 useAttention = arg_dict['att']
+
+V_dict = dict()
+i = 1
+with open('Vac.txt', 'r') as f:
+	V = f.readlines()
+	# print(V)
+	for w in V:
+		V_dict[w.strip()] = i
+		# f.write(w + '\n')
+		i = i+1
 
 def Train():
 	tf.reset_default_graph()
@@ -201,6 +211,7 @@ def Train():
 	saver = tf.train.Saver()
 	sess.run(tf.global_variables_initializer())
 	# start train
+	best_val_acc = 0.0
 	for i in range(iterations):
 		#Next Batch of reviews
 		start_time = time.time()
@@ -235,18 +246,22 @@ def Train():
 				# if useAttention:
 				# 	alpha = sess.run(alpha, valid_dict)
 				# 	pred = sess.run(tf.argmax(prediction,1)[0], valid_dict)
-				# 	plot_attention(alpha[0],valid_dict[inputs][0],pred,valid_dict[sequence_length][0],plot_name="test")
+				# 	plot_attention(alpha[0],index2word(valid_dict[inputs][0]),pred,valid_dict[sequence_length][0],plot_name="test")
 				# 	# break
 				valid_acc += sess.run(accuracy, valid_dict)
 			valid_summary = tf.Summary(value=[
 				tf.Summary.Value(tag="Accuracy", simple_value=valid_acc/(5000//batchSize)), 
 				])
 			writer_valid.add_summary(valid_summary, i)
-
+			#check the best validation accuracy and update best model
+			if valid_acc/(5000//batchSize)>best_val_acc:
+				best_val_acc = valid_acc/(5000//batchSize)
+				save_path = saver.save(sess, "models/" + logdir + "pretrained_lstm.ckpt", global_step=i)
+				print("saved to %s" % save_path)
 		#Save the network every 10,000 training iterations
-		if (i % 10000 == 0 and i != 0):
-			save_path = saver.save(sess, "models/" + logdir + "pretrained_lstm.ckpt", global_step=i)
-			print("saved to %s" % save_path)
+		# if (i % 10000 == 0 and i != 0):
+		# 	save_path = saver.save(sess, "models/" + logdir + "pretrained_lstm.ckpt", global_step=i)
+		# 	print("saved to %s" % save_path)
 
 	# writer_train.close()
 	# writer_valid.close()
@@ -261,9 +276,9 @@ def plot_attention(alpha_arr, inputs, pred, sequence_length, plot_name=None):
 	# '''
 	# if gpuid >= 0:
 	#     alpha_arr = cuda.to_cpu(alpha_arr).astype(np.float32)
-	print(alpha_arr.shape,pred,sequence_length)
+	# print(alpha_arr.shape,pred,sequence_length)
 	fig = plt.figure()
-	fig.set_size_inches(8, 8)
+	fig.set_size_inches(1*sequence_length+4,3)
 
 	gs = gridspec.GridSpec(2, 2, width_ratios=[12,1],height_ratios=[12,1])
 
@@ -272,13 +287,13 @@ def plot_attention(alpha_arr, inputs, pred, sequence_length, plot_name=None):
 
 	cmap = sns.light_palette((200, 75, 60), input="husl", as_cmap=True)
 	# prop = FontProperties(fname='fonts/IPAfont00303/ipam.ttf', size=12)
-	inputs = inputs[:int(sequence_length)]
-	ax = sns.heatmap(alpha_arr[:int(sequence_length)].reshape((int(sequence_length),1)), xticklabels=inputs, yticklabels=[[pred]], ax=ax, cmap=cmap, cbar_ax=ax_c)
+	# inputs = inputs[:int(sequence_length)]
+	ax = sns.heatmap(alpha_arr[:int(sequence_length)].reshape((1,int(sequence_length))), xticklabels=inputs[:int(sequence_length)], yticklabels=[pred], ax=ax, cmap=cmap, cbar_ax=ax_c)
 
 	ax.xaxis.tick_top()
 	ax.yaxis.tick_right()
 
-	ax.set_xticklabels([[pred]], minor=True, rotation=60, size=12)
+	ax.set_xticklabels(inputs, minor=True, rotation=60, size=12)
 	for label in ax.get_xticklabels(minor=False):
 		label.set_fontsize(12)
 		# label.set_font_properties(prop)
@@ -288,11 +303,20 @@ def plot_attention(alpha_arr, inputs, pred, sequence_length, plot_name=None):
 		label.set_rotation(-90)
 		label.set_horizontalalignment('left')
 
-	ax.set_xlabel("Source", size=20)
-	ax.set_ylabel("Hypothesis", size=20)
+	ax.set_xlabel("Sentence", size=10)
+	# ax.set_ylabel("Hypothesis", size=20)
 
 	if plot_name:
 		fig.savefig(plot_name, format="pdf")
+
+def index2word(inputs,seq_len):
+	words = []
+	# print()
+	for x in range(seq_len):
+		for word, index in V_dict.items():
+			if index == inputs[x][0]:
+				words.append(word)
+	return words
 
 if __name__ == "__main__":
 	Train()
