@@ -5,6 +5,7 @@ import time
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import seaborn as sns
+import os
 
 import argparse
 parser = argparse.ArgumentParser(description='Process some integers.')
@@ -17,14 +18,17 @@ parser.add_argument('-d',default=0.75,help="Dropout for LSTM, default is 0.75.")
 parser.add_argument('-att',default=True,help="Use attention or not, default is False.")
 parser.add_argument('-bs',default=100,help="Batch size of model input, default is 100.")
 parser.add_argument('-rl',default=2,help="RNN layer number, default is 2.")
+parser.add_argument('-tflag',default=True,help="Train flag true for training, false for testing, default is True")
+parser.add_argument('-model',default="tensorboard/2018xxxxx-xxxxxx/",help="Model name, default is 'tensorboard/2018xxxxx-xxxxxx/'.")
 args = parser.parse_args()
 arg_dict = vars(args)
 # print(arg_dict)	
 
-batchSize = arg_dict['bs']
+batchSize = int(arg_dict['bs'])
 
 train_data = data_providers.ACLIMDBDataProvider('train', batch_size=batchSize)
 valid_data = data_providers.ACLIMDBDataProvider('valid', batch_size=batchSize)
+test_data = data_providers.ACLIMDBDataProvider('test', batch_size=batchSize)
 def processBatch(nextBatch):
 	max_len = 0
 	nextBatchLength = np.zeros(batchSize)
@@ -40,17 +44,23 @@ def getTrainBatch():
 	return train_data.next()
 def getValidBatch():
 	return valid_data.next()
+def getTestBatch():
+	return test_data.next()
 
-lstmUnits = arg_dict['hs']
+lstmUnits = int(arg_dict['hs'])
 numClasses = 2
 epoches = 5
 iterations = 20000//batchSize * epoches
-numDimensions = arg_dict['v'] #Dimensions for each word vector
-vocSize = 93929
-dropoutRatio = arg_dict['d']
-useBidirectional = True
-rnnLayers = arg_dict['rl']
-useAttention = arg_dict['att']
+numDimensions = int(arg_dict['v']) #Dimensions for each word vector
+vocSize = 89475
+dropoutRatio = float(arg_dict['d'])
+useBidirectional = False if arg_dict['bi']=="False" else True
+rnnLayers = int(arg_dict['rl'])
+useAttention = False if arg_dict['att']=="False" else True
+train_flag = False if arg_dict['tflag']=="False" else True
+model_name = arg_dict['model']
+print(arg_dict)
+
 
 V_dict = dict()
 i = 1
@@ -123,8 +133,9 @@ def Train():
 			final_state = tf.concat([final_state_fw[-1].h, final_state_bw[-1].h],1)
 			outputs = tf.concat([outputs_fw, outputs_bw],2)
 		else:
-			outputs, final_state = tf.nn.dynamic_rnn(lstmCell_m, datas,
+			outputs, final_states = tf.nn.dynamic_rnn(lstmCell_m, datas,
 				sequence_length = sequence_length, dtype=tf.float32)
+			final_state = final_states[-1].h
 
 	with tf.name_scope("Attention"):
 		if useAttention:
@@ -137,7 +148,7 @@ def Train():
 					),[batchSize,-1,2*lstmUnits])
 				context_vector = tf.reduce_mean(context_vector,axis=1)
 			else:
-				a = tf.reshape(tf.matmul(outputs,tf.reshape(final_state,[batchSize,2*lstmUnits,1])),[batchSize,-1,1,1])
+				a = tf.reshape(tf.matmul(outputs,tf.reshape(final_state,[batchSize,lstmUnits,1])),[batchSize,-1,1,1])
 				alpha = tf.nn.softmax(processPadding(a),dim=1)
 				context_vector = tf.reshape(tf.matmul(
 					alpha,
@@ -206,62 +217,84 @@ def Train():
 
 	# define output files
 	sess = tf.InteractiveSession()
-	writer_train = tf.summary.FileWriter(logdir + 'train', sess.graph)
-	writer_valid = tf.summary.FileWriter(logdir + 'valid', sess.graph)
 	saver = tf.train.Saver()
-	sess.run(tf.global_variables_initializer())
-	# start train
-	best_val_acc = 0.0
-	for i in range(iterations):
-		#Next Batch of reviews
-		start_time = time.time()
-		nextBatch, nextBatchLabels = getTrainBatch()
-		dict_feed = {}
-		# for j in range(batchSize):
-		# 	dict_feed[inputs[j]] = nextBatch[j].reshape((len(nextBatch[j]),1))/9392.8
-		dict_feed[inputs], dict_feed[sequence_length] = processBatch(nextBatch)
-		dict_feed[labels] = nextBatchLabels
-		dict_feed[dropout_ratio] = dropoutRatio
-		# print(nextBatch[j].shape)
-		# print(sess.run(datas[0], dict_feed))
-		# print(sess.run(predict_test, dict_feed))
-		# print(sess.run(final_state_fw, dict_feed))
-		# print(sess.run(outputs_fw, dict_feed))
-		# print(sess.run(a, dict_feed))
-		sess.run(optimizer, dict_feed)
-		print("%f min left for complete" % ((time.time() - start_time)*(iterations-i)/60))
-		#Write summary to Tensorboard
-		if (i % 50 == 0):
-			# Train summary
-			summary = sess.run(merged, dict_feed)
-			writer_train.add_summary(summary, i)
-			# Validation summary
-			valid_acc = 0.0
-			for j in range(5000//batchSize):
-				valid_nextBatch, valid_nextBatchLabels = getValidBatch()
-				valid_dict = {}
-				valid_dict[inputs], valid_dict[sequence_length] = processBatch(valid_nextBatch)
-				valid_dict[labels] = valid_nextBatchLabels
-				valid_dict[dropout_ratio] = 1
-				# if useAttention:
-				# 	alpha = sess.run(alpha, valid_dict)
-				# 	pred = sess.run(tf.argmax(prediction,1)[0], valid_dict)
-				# 	plot_attention(alpha[0],index2word(valid_dict[inputs][0]),pred,valid_dict[sequence_length][0],plot_name="test")
-				# 	# break
-				valid_acc += sess.run(accuracy, valid_dict)
-			valid_summary = tf.Summary(value=[
-				tf.Summary.Value(tag="Accuracy", simple_value=valid_acc/(5000//batchSize)), 
-				])
-			writer_valid.add_summary(valid_summary, i)
-			#check the best validation accuracy and update best model
-			if valid_acc/(5000//batchSize)>best_val_acc:
-				best_val_acc = valid_acc/(5000//batchSize)
-				save_path = saver.save(sess, "models/" + logdir + "pretrained_lstm.ckpt", global_step=i)
-				print("saved to %s" % save_path)
-		#Save the network every 10,000 training iterations
-		# if (i % 10000 == 0 and i != 0):
-		# 	save_path = saver.save(sess, "models/" + logdir + "pretrained_lstm.ckpt", global_step=i)
-		# 	print("saved to %s" % save_path)
+	
+	if train_flag:
+		writer_train = tf.summary.FileWriter(logdir + 'train', sess.graph)
+		writer_valid = tf.summary.FileWriter(logdir + 'valid', sess.graph)
+		sess.run(tf.global_variables_initializer())
+		# start train
+		best_val_acc = 0.0
+		for i in range(iterations):
+			#Next Batch of reviews
+			start_time = time.time()
+			nextBatch, nextBatchLabels = getTrainBatch()
+			dict_feed = {}
+			# for j in range(batchSize):
+			# 	dict_feed[inputs[j]] = nextBatch[j].reshape((len(nextBatch[j]),1))/9392.8
+			dict_feed[inputs], dict_feed[sequence_length] = processBatch(nextBatch)
+			dict_feed[labels] = nextBatchLabels
+			dict_feed[dropout_ratio] = dropoutRatio
+			# print(nextBatch[j].shape)
+			# print(sess.run(datas[0], dict_feed))
+			# print(sess.run(predict_test, dict_feed))
+			# print(sess.run(final_state_fw, dict_feed))
+			# print(sess.run(outputs_fw, dict_feed))
+			# print(sess.run(a, dict_feed))
+			# print(sess.run(final_states, dict_feed))
+			sess.run(optimizer, dict_feed)
+			print("%f min left for complete" % ((time.time() - start_time)*(iterations-i)/60))
+			#Write summary to Tensorboard
+			if (i % 50 == 0):
+				# Train summary
+				summary = sess.run(merged, dict_feed)
+				writer_train.add_summary(summary, i)
+				# Validation summary
+				valid_acc = 0.0
+				for j in range(5000//batchSize):
+					valid_nextBatch, valid_nextBatchLabels = getValidBatch()
+					valid_dict = {}
+					valid_dict[inputs], valid_dict[sequence_length] = processBatch(valid_nextBatch)
+					valid_dict[labels] = valid_nextBatchLabels
+					valid_dict[dropout_ratio] = 1
+					# if useAttention:
+					# 	alpha = sess.run(alpha, valid_dict)
+					# 	pred = sess.run(tf.argmax(prediction,1)[0], valid_dict)
+					# 	plot_attention(alpha[0],index2word(valid_dict[inputs][0]),pred,valid_dict[sequence_length][0],plot_name="test")
+					# 	# break
+					valid_acc += sess.run(accuracy, valid_dict)
+				valid_summary = tf.Summary(value=[
+					tf.Summary.Value(tag="Accuracy", simple_value=valid_acc/(5000//batchSize)), 
+					])
+				writer_valid.add_summary(valid_summary, i)
+				#check the best validation accuracy and update best model
+				if valid_acc/(5000//batchSize) > best_val_acc:
+					best_val_acc = valid_acc/(5000//batchSize)
+					if not os.path.exists("models/" + logdir):
+						os.makedirs("models/" + logdir)
+					save_path = saver.save(sess, "models/" + logdir + "pretrained_lstm.ckpt")
+					print("saved to %s" % save_path)
+	else:
+		# test section
+		saver.restore(sess, "models/" + model_name +"pretrained_lstm.ckpt")
+		test_acc = 0.0
+		for j in range(25000//batchSize):
+			test_nextBatch, test_nextBatchLabels = getTestBatch()
+			test_dict = {}
+			test_dict[inputs], test_dict[sequence_length] = processBatch(test_nextBatch)
+			test_dict[labels] = test_nextBatchLabels
+			test_dict[dropout_ratio] = 1
+			# if useAttention:
+			# 	alpha = sess.run(alpha, test_dict)
+			# 	pred = sess.run(tf.argmax(prediction,1)[0], test_dict)
+			# 	plot_attention(alpha[0],index2word(test_dict[inputs][0]),pred,test_dict[sequence_length][0],plot_name="test")
+			# 	# break
+			test_acc += sess.run(accuracy, test_dict)
+		print("Test accuracy of '" + model_name + "' is " + str(test_acc/(25000//batchSize)))
+		# test_summary = tf.Summary(value=[
+		# 	tf.Summary.Value(tag="Accuracy", simple_value=test_acc/(5000//batchSize)), 
+		# 	])
+		# writer_test.add_summary(valid_summary, i)
 
 	# writer_train.close()
 	# writer_valid.close()

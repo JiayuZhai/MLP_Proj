@@ -9,18 +9,52 @@ data_path_4 = '/home/wilburzhai/mlpractical/data/aclImdb/test/neg/*.txt'
 data_path_5 = '/home/wilburzhai/mlpractical/data/aclImdb/test/pos/*.txt'
 # print(glob.glob(data_path))
 
-# V = []
-# i=0
+V = []
+i=0
 maxLength = 2505
-# # read pos reviews to vocabulary
-# for filename in glob.glob(data_path_1):
+# read pos reviews to vocabulary
+for filename in glob.glob(data_path_1):
+	with open(filename, 'r') as f:
+		text = f.readlines()
+		text[0] = text[0].replace('<br />', ' ')
+		words = re.sub('[^\w]', ' ', text[0]).split()
+		# print(words)
+		# if len(words)>maxLength:
+		# 	maxLength = len(words)
+		if i>=10000:
+			break
+		for word in words:
+			if word != '' and word not in V:
+				V.append(word)
+	i = i+1
+	if i%100 == 0:
+		print(i//100)
+	# print(filename)
+# read neg reviews to vocabulary		
+for filename in glob.glob(data_path_2):
+	with open(filename, 'r') as f:
+		text = f.readlines()
+		text[0] = text[0].replace('<br />', ' ')
+		words = re.sub('[^\w]', ' ', text[0]).split()
+		# print(words)
+		# if len(words)>maxLength:
+		# 	maxLength = len(words)
+		if i>=22500:
+			break
+		for word in words:
+			if word != '' and word not in V:
+				V.append(word)
+	i = i+1
+	if i%100 == 0:
+		print(i//100)
+	# print(filename)
+# read unsup reviews to vocabulary
+# for filename in glob.glob(data_path_3):
 # 	with open(filename, 'r') as f:
 # 		text = f.readlines()
 # 		text[0] = text[0].replace('<br />', ' ')
-# 		words = re.sub('[^\w]', ' ', text[0]).split()
+# 		words = re.sub('[^\w]', ' ',  text[0]).split()
 # 		# print(words)
-# 		# if len(words)>maxLength:
-# 		# 	maxLength = len(words)
 # 		for word in words:
 # 			if(word != '' and word not in V):
 # 				V.append(word)
@@ -28,47 +62,18 @@ maxLength = 2505
 # 	if i%100 == 0:
 # 		print(i//100)
 # 	# print(filename)
-# # read neg reviews to vocabulary		
-# for filename in glob.glob(data_path_2):
-# 	with open(filename, 'r') as f:
-# 		text = f.readlines()
-# 		text[0] = text[0].replace('<br />', ' ')
-# 		words = re.sub('[^\w]', ' ', text[0]).split()
-# 		# print(words)
-# 		# if len(words)>maxLength:
-# 		# 	maxLength = len(words)
-# 		for word in words:
-# 			if(word != '' and word not in V):
-# 				V.append(word)
-# 	i = i+1
-# 	if i%100 == 0:
-# 		print(i//100)
-# 	# print(filename)
-# # read unsup reviews to vocabulary
-# # for filename in glob.glob(data_path_3):
-# # 	with open(filename, 'r') as f:
-# # 		text = f.readlines()
-# # 		text[0] = text[0].replace('<br />', ' ')
-# # 		words = re.sub('[^\w]', ' ',  text[0]).split()
-# # 		# print(words)
-# # 		for word in words:
-# # 			if(word != '' and word not in V):
-# # 				V.append(word)
-# # 	i = i+1
-# # 	if i%100 == 0:
-# # 		print(i//100)
-# # 	# print(filename)
-# V.sort()
-# # i = 1
-# # V_dict = dict()
-# with open('Vac.txt', 'w') as fout:
-# 	for w in V:
-# # 		V_dict[w] = i
-# 		fout.write(w + '\n')
-# # 		i = i+1
+V.sort()
+print(len(V))
+# i = 1
+# V_dict = dict()
+with open('Vac.txt', 'w') as fout:
+	for w in V:
+# 		V_dict[w] = i
+		fout.write(w + '\n')
+# 		i = i+1
 
 # print(maxLength)
-i = 1
+i = 0
 V_dict = dict()
 with open('Vac.txt', 'r') as f:
 	V = f.readlines()
@@ -85,7 +90,7 @@ train_y = np.zeros(20000,dtype=np.int)
 # valid_X = np.zeros((5000,None))
 valid_X = []
 valid_y = np.zeros(5000,dtype=np.int)
-i = 1
+i = 0
 counter_train=0
 counter_valid=0
 for filename in glob.glob(data_path_1):
@@ -94,11 +99,13 @@ for filename in glob.glob(data_path_1):
 		text[0] = text[0].replace('<br />', ' ')
 		words = re.sub('[^\w]', ' ', text[0]).split()
 		# print(words)
-		word_List = np.zeros(len(words))
+		word_List = []
 		for c,word in enumerate(words):
 			# if c<maxLength:
-			word_List[c] = V_dict[word] 
-		if(i<=10000):
+			if word in V_dict:
+				word_List.append(V_dict[word])
+		word_List = np.array(word_List)
+		if i<10000:
 			# train_X[counter_train] = word_List
 			train_X.append(word_List)
 			train_y[counter_train] = 0 # target label 0 means neg
@@ -110,18 +117,20 @@ for filename in glob.glob(data_path_1):
 			counter_valid = counter_valid + 1
 		i = i+1
 print('neg finished')
-i = 1
+i = 0
 for filename in glob.glob(data_path_2):
 	with open(filename, 'r') as f:
 		text = f.readlines()
 		text[0] = text[0].replace('<br />', ' ')
 		words = re.sub('[^\w]', ' ', text[0]).split()
 		# print(words)
-		word_List = np.zeros(len(words))
+		word_List = []
 		for c,word in enumerate(words):
 			# if c<maxLength:
-			word_List[c] = V_dict[word] 
-		if(i<=10000):
+			if word in V_dict:
+				word_List.append(V_dict[word])
+		word_List = np.array(word_List)
+		if i<10000:
 			# train_X[counter_train] = word_List
 			train_X.append(word_List)
 			train_y[counter_train] = 1 # target label 1 means pos
