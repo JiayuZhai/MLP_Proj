@@ -30,4 +30,4 @@ export TMP=/disk/scratch/${STUDENT_ID}/
 
 source /home/${STUDENT_ID}/miniconda3/bin/activate mlp
 
-python Train.py -bi True -d 0.75 -att True -rl 2
+python Train.py -bi True -d 0.75 -att True -rl 2 -model tensorboard/att/
