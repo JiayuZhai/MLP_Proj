@@ -19,7 +19,7 @@ parser.add_argument('-att',default=True,help="Use attention or not, default is F
 parser.add_argument('-bs',default=100,help="Batch size of model input, default is 100.")
 parser.add_argument('-rl',default=2,help="RNN layer number, default is 2.")
 parser.add_argument('-tflag',default=True,help="Train flag true for training, false for testing, default is True")
-parser.add_argument('-model',default="tensorboard/2018xxxxx-xxxxxx/",help="Model name, default is 'tensorboard/2018xxxxx-xxxxxx/'.")
+parser.add_argument('-model',default="tensorboard/baseline/",help="Model name, default is 'tensorboard/baseline/'.")
 args = parser.parse_args()
 arg_dict = vars(args)
 # print(arg_dict)	
@@ -213,7 +213,7 @@ def Train():
 	merged = tf.summary.merge_all('train')
 	# valid_merged = tf.summary.merge([tf.summary.scalar('ValidLoss', valid_loss),
 	# 	tf.summary.scalar('ValidAccuracy', valid_accuracy)])
-	logdir = "tensorboard/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") + "/"
+	logdir = model_name
 
 	# define output files
 	sess = tf.InteractiveSession()
