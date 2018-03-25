@@ -1,15 +1,23 @@
 # MLP_Proj
 ##environment
 windows
-`set MLP_DATA_DIR=.\data`
-`conda install seaborn`
+```python
+set MLP_DATA_DIR=.\data
+conda install seaborn
+```
 linux
-`export MLP_DATA_DIR=./data`
-`conda install seaborn`
+```python
+export MLP_DATA_DIR=./data
+conda install seaborn
+```
 
 ##run
-`python Train.py`
+```python
+python Train.py
+```
 
 ##tensorboard
-`tensorboard --logdir=tensorboard`
+```python
+tensorboard --logdir=tensorboard
+```
 open the link address
