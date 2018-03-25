@@ -9,68 +9,68 @@ data_path_4 = '/home/wilburzhai/mlpractical/data/aclImdb/test/neg/*.txt'
 data_path_5 = '/home/wilburzhai/mlpractical/data/aclImdb/test/pos/*.txt'
 # print(glob.glob(data_path))
 
-V = []
-i=0
-maxLength = 2505
-# read pos reviews to vocabulary
-for filename in glob.glob(data_path_1):
-	with open(filename, 'r') as f:
-		text = f.readlines()
-		text[0] = text[0].replace('<br />', ' ')
-		words = re.sub('[^\w]', ' ', text[0]).split()
-		# print(words)
-		# if len(words)>maxLength:
-		# 	maxLength = len(words)
-		if i>=10000:
-			break
-		for word in words:
-			if word != '' and word not in V:
-				V.append(word)
-	i = i+1
-	if i%100 == 0:
-		print(i//100)
-	# print(filename)
-# read neg reviews to vocabulary		
-for filename in glob.glob(data_path_2):
-	with open(filename, 'r') as f:
-		text = f.readlines()
-		text[0] = text[0].replace('<br />', ' ')
-		words = re.sub('[^\w]', ' ', text[0]).split()
-		# print(words)
-		# if len(words)>maxLength:
-		# 	maxLength = len(words)
-		if i>=22500:
-			break
-		for word in words:
-			if word != '' and word not in V:
-				V.append(word)
-	i = i+1
-	if i%100 == 0:
-		print(i//100)
-	# print(filename)
-# read unsup reviews to vocabulary
-# for filename in glob.glob(data_path_3):
+# V = []
+# i=0
+# maxLength = 2505
+# # read pos reviews to vocabulary
+# for filename in glob.glob(data_path_1):
 # 	with open(filename, 'r') as f:
 # 		text = f.readlines()
 # 		text[0] = text[0].replace('<br />', ' ')
-# 		words = re.sub('[^\w]', ' ',  text[0]).split()
+# 		words = re.sub('[^\w]', ' ', text[0]).split()
 # 		# print(words)
+# 		# if len(words)>maxLength:
+# 		# 	maxLength = len(words)
+# 		if i>=10000:
+# 			break
 # 		for word in words:
-# 			if(word != '' and word not in V):
+# 			if word != '' and word not in V:
 # 				V.append(word)
 # 	i = i+1
 # 	if i%100 == 0:
 # 		print(i//100)
 # 	# print(filename)
-V.sort()
-print(len(V))
-# i = 1
-# V_dict = dict()
-with open('Vac.txt', 'w') as fout:
-	for w in V:
-# 		V_dict[w] = i
-		fout.write(w + '\n')
-# 		i = i+1
+# # read neg reviews to vocabulary		
+# for filename in glob.glob(data_path_2):
+# 	with open(filename, 'r') as f:
+# 		text = f.readlines()
+# 		text[0] = text[0].replace('<br />', ' ')
+# 		words = re.sub('[^\w]', ' ', text[0]).split()
+# 		# print(words)
+# 		# if len(words)>maxLength:
+# 		# 	maxLength = len(words)
+# 		if i>=22500:
+# 			break
+# 		for word in words:
+# 			if word != '' and word not in V:
+# 				V.append(word)
+# 	i = i+1
+# 	if i%100 == 0:
+# 		print(i//100)
+# 	# print(filename)
+# # read unsup reviews to vocabulary
+# # for filename in glob.glob(data_path_3):
+# # 	with open(filename, 'r') as f:
+# # 		text = f.readlines()
+# # 		text[0] = text[0].replace('<br />', ' ')
+# # 		words = re.sub('[^\w]', ' ',  text[0]).split()
+# # 		# print(words)
+# # 		for word in words:
+# # 			if(word != '' and word not in V):
+# # 				V.append(word)
+# # 	i = i+1
+# # 	if i%100 == 0:
+# # 		print(i//100)
+# # 	# print(filename)
+# V.sort()
+# print(len(V))
+# # i = 1
+# # V_dict = dict()
+# with open('Vac.txt', 'w') as fout:
+# 	for w in V:
+# # 		V_dict[w] = i
+# 		fout.write(w + '\n')
+# # 		i = i+1
 
 # print(maxLength)
 i = 0
@@ -153,12 +153,12 @@ for filename in glob.glob(data_path_4):
 		text = f.readlines()
 		text[0] = text[0].replace('<br />', ' ')
 		words = re.sub('[^\w]', ' ', text[0]).split()
-		word_List = np.zeros(len(words))
+		word_List = []
 		for c,word in enumerate(words):
 			if word in V_dict:
-				word_List[c] = V_dict[word] 
+				word_List.append(V_dict[word]) 
 		# test_X[counter_test] = word_List
-		test_X.append(word_List)
+		test_X.append(np.array(word_List))
 		test_y[counter_test] = 0 # target label 0 means neg
 		counter_test = counter_test + 1
 print('neg_test finished')
@@ -168,12 +168,12 @@ for filename in glob.glob(data_path_5):
 		text = f.readlines()
 		text[0] = text[0].replace('<br />', ' ')
 		words = re.sub('[^\w]', ' ', text[0]).split()
-		word_List = np.zeros(len(words))
+		word_List = []
 		for c,word in enumerate(words):
 			if word in V_dict:
-				word_List[c] = V_dict[word] 
+				word_List.append(V_dict[word]) 
 		# test_X[counter_test] = word_List
-		test_X.append(word_List)
+		test_X.append(np.array(word_List))
 		test_y[counter_test] = 1 # target label 1 means pos
 		counter_test = counter_test + 1
 print('pos_test finished')

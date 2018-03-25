@@ -246,7 +246,7 @@ def Train():
 					# if useAttention:
 					# 	alpha = sess.run(alpha, valid_dict)
 					# 	pred = sess.run(tf.argmax(prediction,1)[0], valid_dict)
-					# 	plot_attention(alpha[0],index2word(valid_dict[inputs][0]),pred,
+					# 	plot_attention(alpha[0],index2word(valid_dict[inputs][0],valid_dict[sequence_length][0]),pred,
 					# 		valid_dict[sequence_length][0],plot_name="test")
 					# 	# break
 					summary = sess.run([accuracy,loss], valid_dict)
@@ -279,10 +279,15 @@ def Train():
 			test_dict[dropout_ratio] = 1
 			# if useAttention:
 			# 	alpha = sess.run(alpha, test_dict)
-			# 	pred = sess.run(tf.argmax(prediction,1)[0], test_dict)
-			# 	plot_attention(alpha[0],index2word(test_dict[inputs][0]),pred,
-			# 		test_dict[sequence_length][0],plot_name="test")
-			# 	# break
+			# 	pred = sess.run(tf.argmax(prediction,1), test_dict)
+			# 	label_att = test_dict[labels][:,1]
+			# 	# for x in range(len(pred)):
+			# 	# 	print(x,pred[x],label_att[x])
+			# 	index_ = 10
+			# 	plot_attention(alpha[index_],index2word(test_dict[inputs][index_],test_dict[sequence_length][index_]),
+			# 		pred[index_], int(label_att[index_]),
+			# 		test_dict[sequence_length][index_],plot_name="test")
+			# 	break
 			test_acc += sess.run(accuracy, test_dict)
 		print("Test accuracy of '" + model_name + "' is " + str(test_acc/(25000//batchSize)))
 
@@ -293,15 +298,16 @@ def processPadding(a):
 	# process the padded zeros to -Inf.
 	return a+tf.log(tf.abs(tf.sign(a)))
 
-def plot_attention(alpha_arr, inputs, pred, sequence_length, plot_name=None):
+def plot_attention(alpha_arr, inputs, pred, label_att, sequence_length, plot_name=None):
 	'''
 	Support function to plot attention vectors
 	# '''
 	# if gpuid >= 0:
 	#     alpha_arr = cuda.to_cpu(alpha_arr).astype(np.float32)
 	# print(alpha_arr.shape,pred,sequence_length)
+	sequence_length = int(sequence_length)
 	fig = plt.figure()
-	fig.set_size_inches(1*sequence_length+4,3)
+	fig.set_size_inches(1*20+4,1*(sequence_length//20+1))
 
 	gs = gridspec.GridSpec(2, 2, width_ratios=[12,1],height_ratios=[12,1])
 
@@ -311,13 +317,16 @@ def plot_attention(alpha_arr, inputs, pred, sequence_length, plot_name=None):
 	cmap = sns.light_palette((200, 75, 60), input="husl", as_cmap=True)
 	# prop = FontProperties(fname='fonts/IPAfont00303/ipam.ttf', size=12)
 	# inputs = inputs[:int(sequence_length)]
-	ax = sns.heatmap(alpha_arr[:int(sequence_length)].reshape((1,int(sequence_length))), 
-		xticklabels=inputs[:int(sequence_length)], yticklabels=[pred], ax=ax, cmap=cmap, cbar_ax=ax_c)
+	padding = (sequence_length//20+1)*20-sequence_length
+	data_ = np.append(alpha_arr[:sequence_length],np.zeros(padding)).reshape((sequence_length//20+1,20))
+	annot = np.append(np.array(inputs),np.array(['' for i in range(padding)])).reshape((sequence_length//20+1,20))
 
-	ax.xaxis.tick_top()
-	ax.yaxis.tick_right()
+	ax = sns.heatmap(data_, annot=annot,fmt = '', cmap=cmap, ax=ax, cbar_ax=ax_c)
 
-	ax.set_xticklabels(inputs, minor=True, rotation=60, size=12)
+	ax.xaxis.tick_bottom()
+	ax.yaxis.tick_left()
+
+	# ax.set_xticklabels(inputs, minor=True, rotation=60, size=12)
 	for label in ax.get_xticklabels(minor=False):
 		label.set_fontsize(12)
 		# label.set_font_properties(prop)
@@ -325,20 +334,30 @@ def plot_attention(alpha_arr, inputs, pred, sequence_length, plot_name=None):
 	for label in ax.get_yticklabels(minor=False):
 		label.set_fontsize(12)
 		label.set_rotation(-90)
-		label.set_horizontalalignment('left')
-
-	ax.set_xlabel("Sentence", size=10)
+		# label.set_horizontalalignment('left')
+	text = ["A ", " Sample, Predicted as "]
+	if label_att == 0:
+		if pred == 0:
+			ax.set_title(text[0] + "Negative" + text[1] + "Negative",size=20)
+		else:
+			ax.set_title(text[0] + "Negative" + text[1] + "Positive",size=20)
+	else:
+		if pred == 0:
+			ax.set_title(text[0] + "Positive" + text[1] + "Negative",size=20)
+		else:
+			ax.set_title(text[0] + "Positive" + text[1] + "Positive",size=20)
+	# ax.set_xlabel("Sentence", size=10)
 	# ax.set_ylabel("Hypothesis", size=20)
 
 	if plot_name:
-		fig.savefig(plot_name, format="pdf")
+		fig.savefig(plot_name + str(label_att) + str(pred), format="pdf")
 
 def index2word(inputs,seq_len):
 	words = []
-	# print()
-	for x in range(seq_len):
+	# print(inputs)
+	for x in range(int(seq_len)):
 		for word, index in V_dict.items():
-			if index == inputs[x][0]:
+			if index-1 == inputs[x]:
 				words.append(word)
 	return words
 
