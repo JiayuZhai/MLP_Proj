@@ -1,5 +1,6 @@
 # MLP_Proj
-##environment
+
+## environment
 windows
 ```
 set MLP_DATA_DIR=.\data
@@ -11,12 +12,12 @@ export MLP_DATA_DIR=./data
 conda install seaborn
 ```
 
-##run
+## run
 ```
 python Train.py
 ```
 
-##tensorboard
+## tensorboard
 ```
 tensorboard --logdir=tensorboard
 ```
