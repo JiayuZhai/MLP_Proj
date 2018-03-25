@@ -1,0 +1,7 @@
+models/tensorboard/**
+tensorboard/**
+sample_experiment_errfile
+sample_experiment_outfile
+outfile_*
+errfile_*
+__pycache__/**

@@ -95,19 +95,9 @@ def Train():
 	# 	# one_hots_r = tf.one_hot(inputs_r,vocSize,axis=-1)
 
 	with tf.name_scope("Word2vector"):
-		# word embedding weights and bias
-		# W1 = tf.Variable(np.random.rand(1, middleDimension), dtype=tf.float32)
-		# # one_hot version for weight
-		# # W1 = tf.Variable(np.random.rand(vacSize, numDimensions), dtype=tf.float32, name="inputs_")
-		# b1 = tf.Variable(np.zeros((1,middleDimension)), dtype=tf.float32)
-		# W2 = tf.Variable(np.random.rand(middleDimension, middleDimension), dtype=tf.float32)
-		# b2 = tf.Variable(np.zeros((1,middleDimension)), dtype=tf.float32)
-		embedding = embedding = tf.get_variable(
+		# word embedding table
+		embedding = tf.get_variable(
 			"embedding", [vocSize, numDimensions], dtype=tf.float32)
-		
-		# W3 = tf.Variable(np.random.rand(1, numDimensions), dtype=tf.float32)
-		# b3 = tf.Variable(np.zeros((1,numDimensions)), dtype=tf.float32)
-
 		# data ready for rnn input
 		datas = tf.nn.embedding_lookup(embedding, inputs)
 
@@ -115,20 +105,22 @@ def Train():
 		# define RNN network
 		# b, sequence_length, 300
 		rnn_layers = []
-		# rnn_layers = [tf.contrib.rnn.BasicLSTMCell(size) for size in [lstmUnits for i in range(rnnLayers)]]
 		for i in range(rnnLayers):
-			# lstmCell = tf.contrib.rnn.BasicLSTMCell(lstmUnits)
-			# lstmCell = tf.contrib.rnn.DropoutWrapper(cell=lstmCell, output_keep_prob=dropout_ratio)
-			rnn_layers.append(tf.contrib.rnn.DropoutWrapper(cell=tf.contrib.rnn.BasicLSTMCell(lstmUnits), output_keep_prob=dropout_ratio))
+			# do not use same variable name represent diffent cells
+			rnn_layers.append(
+				tf.contrib.rnn.DropoutWrapper(
+					cell=tf.contrib.rnn.BasicLSTMCell(lstmUnits), output_keep_prob=dropout_ratio))
 		lstmCell_m = tf.nn.rnn_cell.MultiRNNCell(rnn_layers)
 		if useBidirectional:
 			rnn_layers_r = []
 			for i in range(rnnLayers):
-				# lstmCell_r = tf.contrib.rnn.BasicLSTMCell(lstmUnits)
-				# lstmCell_r = tf.contrib.rnn.DropoutWrapper(cell=lstmCell, output_keep_prob=dropout_ratio)
-				rnn_layers_r.append(tf.contrib.rnn.DropoutWrapper(cell=tf.contrib.rnn.BasicLSTMCell(lstmUnits), output_keep_prob=dropout_ratio))
+				# do not use same variable name represent diffent cells
+				rnn_layers_r.append(
+					tf.contrib.rnn.DropoutWrapper(
+						cell=tf.contrib.rnn.BasicLSTMCell(lstmUnits), output_keep_prob=dropout_ratio))
 			lstmCell_m_r = tf.nn.rnn_cell.MultiRNNCell(rnn_layers_r)
-			(outputs_fw, outputs_bw), (final_state_fw, final_state_bw) = tf.nn.bidirectional_dynamic_rnn(lstmCell_m,lstmCell_m_r, datas,
+			(outputs_fw, outputs_bw), (final_state_fw, final_state_bw) = tf.nn.bidirectional_dynamic_rnn(
+				lstmCell_m,lstmCell_m_r, datas,
 				sequence_length = sequence_length, dtype=tf.float32) #values: batchSize, max_len, LSTM_size
 			final_state = tf.concat([final_state_fw[-1].h, final_state_bw[-1].h],1)
 			outputs = tf.concat([outputs_fw, outputs_bw],2)
@@ -140,7 +132,8 @@ def Train():
 	with tf.name_scope("Attention"):
 		if useAttention:
 			if useBidirectional:
-				a = tf.reshape(tf.matmul(outputs,tf.reshape(final_state,[batchSize,2*lstmUnits,1])),[batchSize,-1,1,1])
+				a = tf.reshape(tf.matmul(outputs,tf.reshape(final_state,[batchSize,2*lstmUnits,1])),
+					[batchSize,-1,1,1])
 				alpha = tf.nn.softmax(processPadding(a),dim=1)
 				context_vector = tf.reshape(tf.matmul(
 					alpha,
@@ -148,7 +141,8 @@ def Train():
 					),[batchSize,-1,2*lstmUnits])
 				context_vector = tf.reduce_mean(context_vector,axis=1)
 			else:
-				a = tf.reshape(tf.matmul(outputs,tf.reshape(final_state,[batchSize,lstmUnits,1])),[batchSize,-1,1,1])
+				a = tf.reshape(tf.matmul(outputs,tf.reshape(final_state,[batchSize,lstmUnits,1])),
+					[batchSize,-1,1,1])
 				alpha = tf.nn.softmax(processPadding(a),dim=1)
 				context_vector = tf.reshape(tf.matmul(
 					alpha,
@@ -173,10 +167,6 @@ def Train():
 			else:
 				weight1 = tf.Variable(np.random.rand(lstmUnits, numClasses), dtype=tf.float32)
 		bias1 = tf.Variable(tf.constant(0.1, shape=[numClasses]))
-		# weight2 = tf.Variable(np.random.rand(middleDimension, middleDimension), dtype=tf.float32)
-		# bias2 = tf.Variable(tf.constant(0.1, shape=[middleDimension]))
-		# weight3 = tf.Variable(np.random.rand(middleDimension, numClasses), dtype=tf.float32)
-		# bias3 = tf.Variable(tf.constant(0.1, shape=[numClasses]))
 		# get he prediction
 		if useAttention:
 			prediction = tf.matmul(tf.concat([context_vector,final_state],1),weight1) + bias1
@@ -186,7 +176,6 @@ def Train():
 	with tf.name_scope("Acc"):
 		# calculate the accuracy
 		predict_test = tf.argmax(prediction,1)
-		# labels_test = tf.argmax(labels,1)
 		correctPred = tf.equal(tf.argmax(prediction,1), tf.argmax(labels,1))
 		accuracy = tf.reduce_mean(tf.cast(correctPred, tf.float32))
 
@@ -194,14 +183,14 @@ def Train():
 		# define the loss
 		loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=prediction, labels=labels))
 
-	with tf.name_scope("ValidAcc"):
-		# calculate the accuracy
-		valid_correctPred = tf.equal(tf.argmax(prediction,1), tf.argmax(labels,1))
-		valid_accuracy = tf.reduce_mean(tf.cast(correctPred, tf.float32))
+	# with tf.name_scope("ValidAcc"):
+	# 	# calculate the accuracy
+	# 	valid_correctPred = tf.equal(tf.argmax(prediction,1), tf.argmax(labels,1))
+	# 	valid_accuracy = tf.reduce_mean(tf.cast(correctPred, tf.float32))
 
-	with tf.name_scope("ValidErr"):
-		# define the loss
-		valid_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=prediction, labels=labels))
+	# with tf.name_scope("ValidErr"):
+	# 	# define the loss
+	# 	valid_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=prediction, labels=labels))
 
 	# set learning method
 	optimizer = tf.train.AdamOptimizer().minimize(loss)
@@ -211,27 +200,23 @@ def Train():
 	tf.summary.scalar('Loss', loss, collections=['train'])
 	tf.summary.scalar('Accuracy', accuracy, collections=['train'])
 	merged = tf.summary.merge_all('train')
-	# valid_merged = tf.summary.merge([tf.summary.scalar('ValidLoss', valid_loss),
-	# 	tf.summary.scalar('ValidAccuracy', valid_accuracy)])
 	logdir = model_name
 
-	# define output files
 	sess = tf.InteractiveSession()
 	saver = tf.train.Saver()
 	
 	if train_flag:
+		# define output files
 		writer_train = tf.summary.FileWriter(logdir + 'train', sess.graph)
 		writer_valid = tf.summary.FileWriter(logdir + 'valid', sess.graph)
 		sess.run(tf.global_variables_initializer())
 		# start train
 		best_val_acc = 0.0
 		for i in range(iterations):
-			#Next Batch of reviews
 			start_time = time.time()
+			#Next Batch of reviews
 			nextBatch, nextBatchLabels = getTrainBatch()
 			dict_feed = {}
-			# for j in range(batchSize):
-			# 	dict_feed[inputs[j]] = nextBatch[j].reshape((len(nextBatch[j]),1))/9392.8
 			dict_feed[inputs], dict_feed[sequence_length] = processBatch(nextBatch)
 			dict_feed[labels] = nextBatchLabels
 			dict_feed[dropout_ratio] = dropoutRatio
@@ -251,6 +236,7 @@ def Train():
 				writer_train.add_summary(summary, i)
 				# Validation summary
 				valid_acc = 0.0
+				valid_loss = 0.0
 				for j in range(5000//batchSize):
 					valid_nextBatch, valid_nextBatchLabels = getValidBatch()
 					valid_dict = {}
@@ -260,11 +246,16 @@ def Train():
 					# if useAttention:
 					# 	alpha = sess.run(alpha, valid_dict)
 					# 	pred = sess.run(tf.argmax(prediction,1)[0], valid_dict)
-					# 	plot_attention(alpha[0],index2word(valid_dict[inputs][0]),pred,valid_dict[sequence_length][0],plot_name="test")
+					# 	plot_attention(alpha[0],index2word(valid_dict[inputs][0]),pred,
+					# 		valid_dict[sequence_length][0],plot_name="test")
 					# 	# break
-					valid_acc += sess.run(accuracy, valid_dict)
+					summary = sess.run([accuracy,loss], valid_dict)
+					valid_acc += summary[0]
+					valid_loss += summary[1]
+
 				valid_summary = tf.Summary(value=[
 					tf.Summary.Value(tag="Accuracy", simple_value=valid_acc/(5000//batchSize)), 
+					tf.Summary.Value(tag="Loss", simple_value=valid_loss/(5000//batchSize)), 
 					])
 				writer_valid.add_summary(valid_summary, i)
 				#check the best validation accuracy and update best model
@@ -274,6 +265,8 @@ def Train():
 						os.makedirs("models/" + logdir)
 					save_path = saver.save(sess, "models/" + logdir + "pretrained_lstm.ckpt")
 					print("saved to %s" % save_path)
+		writer_train.close()
+		writer_valid.close()		
 	else:
 		# test section
 		saver.restore(sess, "models/" + model_name +"pretrained_lstm.ckpt")
@@ -287,14 +280,11 @@ def Train():
 			# if useAttention:
 			# 	alpha = sess.run(alpha, test_dict)
 			# 	pred = sess.run(tf.argmax(prediction,1)[0], test_dict)
-			# 	plot_attention(alpha[0],index2word(test_dict[inputs][0]),pred,test_dict[sequence_length][0],plot_name="test")
+			# 	plot_attention(alpha[0],index2word(test_dict[inputs][0]),pred,
+			# 		test_dict[sequence_length][0],plot_name="test")
 			# 	# break
 			test_acc += sess.run(accuracy, test_dict)
 		print("Test accuracy of '" + model_name + "' is " + str(test_acc/(25000//batchSize)))
-		# test_summary = tf.Summary(value=[
-		# 	tf.Summary.Value(tag="Accuracy", simple_value=test_acc/(5000//batchSize)), 
-		# 	])
-		# writer_test.add_summary(valid_summary, i)
 
 	# writer_train.close()
 	# writer_valid.close()
@@ -321,7 +311,8 @@ def plot_attention(alpha_arr, inputs, pred, sequence_length, plot_name=None):
 	cmap = sns.light_palette((200, 75, 60), input="husl", as_cmap=True)
 	# prop = FontProperties(fname='fonts/IPAfont00303/ipam.ttf', size=12)
 	# inputs = inputs[:int(sequence_length)]
-	ax = sns.heatmap(alpha_arr[:int(sequence_length)].reshape((1,int(sequence_length))), xticklabels=inputs[:int(sequence_length)], yticklabels=[pred], ax=ax, cmap=cmap, cbar_ax=ax_c)
+	ax = sns.heatmap(alpha_arr[:int(sequence_length)].reshape((1,int(sequence_length))), 
+		xticklabels=inputs[:int(sequence_length)], yticklabels=[pred], ax=ax, cmap=cmap, cbar_ax=ax_c)
 
 	ax.xaxis.tick_top()
 	ax.yaxis.tick_right()
