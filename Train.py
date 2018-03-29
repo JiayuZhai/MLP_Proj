@@ -277,17 +277,17 @@ def Train():
 			test_dict[inputs], test_dict[sequence_length] = processBatch(test_nextBatch)
 			test_dict[labels] = test_nextBatchLabels
 			test_dict[dropout_ratio] = 1
-			# if useAttention:
-			# 	alpha = sess.run(alpha, test_dict)
-			# 	pred = sess.run(tf.argmax(prediction,1), test_dict)
-			# 	label_att = test_dict[labels][:,1]
-			# 	# for x in range(len(pred)):
-			# 	# 	print(x,pred[x],label_att[x])
-			# 	index_ = 10
-			# 	plot_attention(alpha[index_],index2word(test_dict[inputs][index_],test_dict[sequence_length][index_]),
-			# 		pred[index_], int(label_att[index_]),
-			# 		test_dict[sequence_length][index_],plot_name="test")
-			# 	break
+			if useAttention:
+				alpha = sess.run(alpha, test_dict)
+				pred = sess.run(tf.argmax(prediction,1), test_dict)
+				label_att = test_dict[labels][:,1]
+				# for x in range(len(pred)):
+				# 	print(x,pred[x],label_att[x])
+				index_ = 0
+				plot_attention(alpha[index_],index2word(test_dict[inputs][index_],test_dict[sequence_length][index_]),
+					pred[index_], int(label_att[index_]),
+					test_dict[sequence_length][index_],plot_name="test")
+				break
 			test_acc += sess.run(accuracy, test_dict)
 		print("Test accuracy of '" + model_name + "' is " + str(test_acc/(25000//batchSize)))
 
@@ -307,9 +307,9 @@ def plot_attention(alpha_arr, inputs, pred, label_att, sequence_length, plot_nam
 	# print(alpha_arr.shape,pred,sequence_length)
 	sequence_length = int(sequence_length)
 	fig = plt.figure()
-	fig.set_size_inches(1*20+4,1*(sequence_length//20+1))
+	fig.set_size_inches(1*20+4,int(0.6*(sequence_length//20+1)+0.5))
 
-	gs = gridspec.GridSpec(2, 2, width_ratios=[12,1],height_ratios=[12,1])
+	gs = gridspec.GridSpec(2, 2, width_ratios=[20,1],height_ratios=[20,1])
 
 	ax = plt.subplot(gs[0])
 	ax_c = plt.subplot(gs[1])
@@ -336,21 +336,11 @@ def plot_attention(alpha_arr, inputs, pred, label_att, sequence_length, plot_nam
 		label.set_rotation(-90)
 		# label.set_horizontalalignment('left')
 	text = ["A ", " Sample, Predicted as "]
-	if label_att == 0:
-		if pred == 0:
-			ax.set_title(text[0] + "Negative" + text[1] + "Negative",size=20)
-		else:
-			ax.set_title(text[0] + "Negative" + text[1] + "Positive",size=20)
-	else:
-		if pred == 0:
-			ax.set_title(text[0] + "Positive" + text[1] + "Negative",size=20)
-		else:
-			ax.set_title(text[0] + "Positive" + text[1] + "Positive",size=20)
-	# ax.set_xlabel("Sentence", size=10)
-	# ax.set_ylabel("Hypothesis", size=20)
+	neg_pos = ['Negative','Positive']
+	ax.set_title(text[0] + neg_pos[label_att] + text[1] + neg_pos[pred],size=20)
 
 	if plot_name:
-		fig.savefig(plot_name + str(label_att) + str(pred), format="pdf")
+		fig.savefig(plot_name + str(label_att) + str(pred)+'.pdf', format="pdf")
 
 def index2word(inputs,seq_len):
 	words = []

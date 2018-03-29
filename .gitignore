@@ -5,3 +5,4 @@ sample_experiment_outfile
 outfile_*
 errfile_*
 __pycache__/**
+*.pdf
